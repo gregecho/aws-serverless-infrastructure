@@ -12,6 +12,22 @@ export default defineConfig({
         find: '@@schemas',
         replacement: path.resolve(__dirname, 'src/schemas'),
       },
+      {
+        find: '@@repositories',
+        replacement: path.resolve(__dirname, 'src/repositories'),
+      },
+      {
+        find: '@@middleware',
+        replacement: path.resolve(__dirname, 'src/middleware'),
+      },
+      {
+        find: '@@clients',
+        replacement: path.resolve(__dirname, 'src/clients'),
+      },
+      {
+        find: '@@services',
+        replacement: path.resolve(__dirname, 'src/services'),
+      },
     ],
   },
   test: {

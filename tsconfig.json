@@ -11,7 +11,10 @@
     "paths": {
       "@@handlers/*": ["./src/handlers/*"],
       "@@clients/*": ["./src/clients/*"],
-      "@@schemas/*": ["./src/schemas/*"]
+      "@@schemas/*": ["./src/schemas/*"],
+      "@@repositories/*": ["./src/repositories/*"],
+      "@@middleware/*": ["./src/middleware/*"],
+      "@@services/*": ["./src/services/*"]
     }
   }
 }

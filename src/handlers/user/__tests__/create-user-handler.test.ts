@@ -1,23 +1,25 @@
+import { UserService } from '@@services/user/userService';
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { handler } from '../create-user-handler';
-import { createUser } from '../userService';
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// Mock and replace the module
-vi.mock('../userService', () => ({
-  createUser: vi.fn(),
-}));
+// Mock UserService.createUser
+const mockCreateUser = vi.fn();
+
+vi.spyOn(UserService.prototype, 'createUser').mockImplementation(
+  mockCreateUser,
+);
 
 describe('createUser handler', () => {
   test('should return 200 when user created', async () => {
     const name = faker.person.firstName();
     const email = faker.internet.email();
     // Type-safe mocking
-    vi.mocked(createUser).mockResolvedValue({
+    mockCreateUser.mockResolvedValue({
       id: faker.string.uuid(),
       name: name,
       email: email,
@@ -37,6 +39,7 @@ describe('createUser handler', () => {
     } as any;
 
     const response = await handler(event, {} as any);
+    expect(mockCreateUser).toHaveBeenCalledWith({ name, email });
     expect(response).toBeDefined();
     // ?.: optional chaining: Only access if NOT null/undefined
     // !.: Non-null assertion: This is NOT null/undefined
@@ -80,5 +83,6 @@ describe('createUser handler', () => {
      */
     expect(body.message).toBe('Validation Failed');
     expect(body.errors[0].path).toBe('email');
+    expect(mockCreateUser).not.toHaveBeenCalled();
   });
 });
