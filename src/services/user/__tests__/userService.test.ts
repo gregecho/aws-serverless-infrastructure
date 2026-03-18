@@ -1,7 +1,7 @@
-import { dynamo } from '@@clients/dynamoClient';
+import { UserRepository } from '@@repositories/user/UserRepository';
 import { faker } from '@faker-js/faker';
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createUser } from '../userService';
+import { createUserService } from '../userService';
 
 beforeAll(() => {
   vi.stubEnv('USERS_TABLE', 'mock-USERS_TABLE');
@@ -22,7 +22,14 @@ vi.mock('@@clients/dynamoClient', () => {
 
 describe('createUser service', () => {
   test('should save user to dynamoDB', async () => {
-    const mockSend = vi.mocked(dynamo.send).mockResolvedValue({} as any);
+    const mockRepo: UserRepository = {
+      save: vi.fn().mockImplementation(async (user) => ({
+        id: 'mock-id',
+        ...user,
+      })),
+    };
+
+    const userService = createUserService(mockRepo);
     const name = faker.person.firstName();
     const email = faker.internet.email();
 
@@ -31,8 +38,8 @@ describe('createUser service', () => {
       email,
     };
 
-    const result = await createUser(user);
-    expect(mockSend).toHaveBeenCalledTimes(1);
+    const result = await userService.createUser(user);
+    expect(mockRepo.save).toHaveBeenCalledTimes(1);
     expect(result.name).toBe(name);
     expect(result.email).toBe(email);
     expect(result).toHaveProperty('id');

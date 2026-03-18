@@ -63,12 +63,15 @@ export const handleApiErrors = (): MiddlewareObj => {
       const error = request.error as any;
       const cause = error?.cause;
 
-      //Try to identify zodError
+      //1. Try to identify zodError
       if (isZodError(error)) return buildZodResponse(error, request);
       if (isZodError(cause)) return buildZodResponse(cause, request);
 
       // 3. Parse error
-      if (error?.name === 'ParseError') {
+      if (
+        error?.name === 'ParseError' ||
+        error?.name === 'UnprocessableEntityError'
+      ) {
         request.response = {
           statusCode: 400,
           body: JSON.stringify({
