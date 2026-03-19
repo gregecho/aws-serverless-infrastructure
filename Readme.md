@@ -85,19 +85,20 @@ AWS_REGION = your - region;
 
 ```bash
 # Start local simulation
-npx serverless offline
+pnpm serverless offline
 
 # Invoke a function locally
-npx serverless invoke local -f create-user --data '{"name": "John", "email": "john@example.com"}'
+pnpm serverless invoke local -f create-user --data '{ "body": "{\"name\": \"John\", \"email\": \"john@example.com\"}", "headers": { "Content-Type": "application/json" }, "isBase64Encoded": false }'
+
 
 # Run all tests with coverage
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ### 4. Deployment
 
 ```bash
-npx serverless deploy
+pnpm serverless deploy
 ```
 
 ### 🧪 Testing Strategy
@@ -119,3 +120,8 @@ We employ a dual-layered testing strategy to ensure reliability:
 - [ ] API Documentation: Automatic Swagger/OpenAPI generation from Zod schemas.
 
 - [ ] Security: Implementation of AWS Secrets Manager for environment variable protection.
+- [ ] 集成 AWS X-Ray: 引入分布式链路追踪，提升 Serverless 环境下的可观测性。
+- [ ] 异步解耦: 在核心链路中引入 Amazon SQS，实现异步任务的削峰填谷。
+- [ ] Local Simulation: 引入 LocalStack，实现无需联网即可在 Docker 中模拟全套 AWS 环境进行测试。
+- [ ] Performance Benchmarking: 编写一个脚本，对比不同内存配置（128MB vs 1024MB）下 Lambda 的执行效率与成本差异。
+- [ ] 精细化异常处理：实现一个全局的 Lambda Error Handler，并对接 CloudWatch Alarms。
