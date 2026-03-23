@@ -450,8 +450,8 @@ const UserResponse = BaseUser.extend({
 - [x] Standardized error response schemas
 - [x] Local DynamoDB via Docker
 - [x] OpenAPI documentation auto-generated from Zod schemas
-- [x] OpenAPI support local query for different envs
-- [x] Auto OpenAPI registration in middleware
+- [x] Auto-register OpenAPI routes in restApiHander
+- [x] Multi-server OpenAPI spec with env-base URLS
 - [ ] OpenAPI deploy to S3 static html
 - [ ] Logging — Structured logging with AWS Lambda Powertools
 - [ ] Observability — AWS X-Ray distributed tracing
