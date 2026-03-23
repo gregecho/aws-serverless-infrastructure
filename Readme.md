@@ -72,7 +72,6 @@ src/
 │   ├── openapi.ts    # Central aggregator for all routes
 │   ├── gen-docs.ts   # CLI script for file generation
 │   ├── registry.ts   # Global OpenAPI registry singleton
-│   └── user.docs.ts  # API path definitions per module
 ├── handlers/         # Lambda entry points
 │   └── user/
 │       ├── index.ts              # CRUD handler exports
@@ -286,6 +285,112 @@ This ensures **100% consistency** between the TypeScript source code and the gen
 
 ---
 
+### How It Works
+
+Documentation is **automatically generated** from the same Zod schemas used for runtime validation. There is no manual OpenAPI YAML to maintain.
+
+```
+Zod Schema (single source of truth)
+       ↓
+restApiHandler({ body, response, openapi })
+       ↓
+registry.registerPath()  ← auto-called at module load time
+       ↓
+pnpm docs:gen → openapi.yaml
+```
+
+---
+
+### 🚀 Commands
+
+```bash
+# Generate openapi.yaml
+pnpm docs:gen
+
+# Live preview at http://localhost:4000
+pnpm docs:preview
+
+# Build standalone index.html for deployment
+pnpm docs:build
+```
+
+---
+
+### 📝 Adding a New Endpoint
+
+**1. Define schemas in `src/schemas/`**
+
+```typescript
+export const createUserSchema = z
+  .object({
+    name: z.string(),
+    email: z.string().email(),
+  })
+  .openapi('CreateUserRequest');
+
+export const userResponseSchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+    email: z.string().email(),
+    createdAt: z.string(),
+  })
+  .openapi('UserResponse');
+```
+
+**2. Register in handler with `openapi` metadata**
+
+```typescript
+// src/handlers/user/index.ts
+export const create = restApiHandler({
+  body: createUserSchema,
+  response: userResponseSchema,
+  openapi: {
+    // ← add this block
+    method: 'post',
+    path: '/users',
+    summary: 'Create user',
+    tags: ['User'],
+  },
+}).handler(async ({ body }) => service.create(body));
+```
+
+**3. Import handler in `src/docs/openapi.ts`**
+
+```typescript
+import '@@handlers/user/index'; // ← triggers auto-registration
+// import '@@handlers/order/index' ← add new resources here
+```
+
+**4. Run**
+
+```bash
+pnpm docs:preview
+```
+
+---
+
+### Architecture
+
+| File                        | Responsibility                                               |
+| :-------------------------- | :----------------------------------------------------------- |
+| `src/middleware/api.ts`     | `restApiHandler` — calls `registerOpenApiRoute` at load time |
+| `src/docs/registry.ts`      | Global OpenAPI registry singleton                            |
+| `src/docs/openapi.ts`       | Aggregates all handlers, generates the spec                  |
+| `src/docs/gen-docs.ts`      | CLI script — writes `openapi.yaml` to disk                   |
+| `src/docs/common.errors.ts` | Shared error response schemas (400/401/404/500)              |
+
+---
+
+### Design Principles
+
+- **Single source of truth** — Zod schemas drive both runtime validation and API docs simultaneously.
+- **Zero drift** — It is impossible for docs to be out of sync with the actual request/response validation.
+- **Zero boilerplate** — No separate `.docs.ts` files to maintain. Adding `openapi: {}` to a handler is all that's needed.
+- **Zero runtime cost** — `registerOpenApiRoute` executes once at module load time, never per-request.
+
+---
+
 ## 📋 Monitoring & Logs
 
 ```bash
@@ -345,10 +450,11 @@ const UserResponse = BaseUser.extend({
 - [x] Standardized error response schemas
 - [x] Local DynamoDB via Docker
 - [x] OpenAPI documentation auto-generated from Zod schemas
+- [x] OpenAPI support local query for different envs
+- [x] Auto OpenAPI registration in middleware
+- [ ] OpenAPI deploy to S3 static html
 - [ ] Logging — Structured logging with AWS Lambda Powertools
 - [ ] Observability — AWS X-Ray distributed tracing
 - [ ] Security — AWS Secrets Manager integration
 - [ ] SQS — Async decoupling for background tasks
 - [ ] Lambda Power Tuning — Memory/cost benchmarking
-- [ ] Auto OpenAPI registration in middleware
-- [ ] OpenAPI auto deployment and swith envs

@@ -28,7 +28,9 @@ const serverlessConfiguration: AWS = {
               'dynamodb:PutItem',
               'dynamodb:GetItem',
               'dynamodb:UpdateItem',
+              'dynamodb:DeleteItem',
               'dynamodb:Query',
+              'dynamodb:Scan',
             ],
             Resource: [
               { 'Fn::GetAtt': ['UsersTable', 'Arn'] },

@@ -19,7 +19,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "docs:gen": "tsx ./src/docs/gen-docs.ts",
-    "docs:preview": "pnpm docs:gen && redocly preview",
+    "docs:preview": "pnpm docs:gen && NODE_TLS_REJECT_UNAUTHORIZED=0 redocly preview",
     "docs:build": "pnpm docs:gen && redocly build-docs openapi.yaml -o index.html"
   },
   "keywords": [],
@@ -39,6 +39,7 @@
     "@middy/http-json-body-parser": "^7.1.7",
     "add": "^2.0.6",
     "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
     "middy": "^0.36.0",
     "pnpm": "^10.32.1",
     "zod": "^4.3.6"

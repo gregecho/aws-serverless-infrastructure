@@ -8,11 +8,21 @@
  */
 
 import { AppError } from '@@utils/errors';
+import { RouteConfig } from '@asteasolutions/zod-to-openapi';
 import middy, { MiddlewareObj } from '@middy/core';
 import httpJsonBodyParser from '@middy/http-json-body-parser';
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import z, { output, ZodError, ZodNever, ZodType } from 'zod';
-import { ApiErrorBody, HandlerInput, Schemas } from './types';
+import z, {
+  output,
+  ZodError,
+  ZodNever,
+  ZodObject,
+  ZodRawShape,
+  ZodType,
+} from 'zod';
+import { commonErrors } from '../docs/common.errors';
+import { registry } from '../docs/registry';
+import { ApiErrorBody, HandlerInput, OpenApiMeta } from './types';
 
 /**
  * Middleware to validate and transform incoming API Gateway request data using Zod schemas.
@@ -27,9 +37,11 @@ import { ApiErrorBody, HandlerInput, Schemas } from './types';
  * @param schemas - Optional Zod schemas for body, query, and path validation
  * @returns Middy middleware object
  */
-export const zodValidationMiddleware = (
-  schemas: Schemas,
-): MiddlewareObj<APIGatewayProxyEvent, APIGatewayProxyResult> => {
+export const zodValidationMiddleware = (schemas: {
+  body?: ZodType;
+  query?: ZodType;
+  path?: ZodType;
+}): MiddlewareObj<APIGatewayProxyEvent, APIGatewayProxyResult> => {
   return {
     before: async (request) => {
       const { event } = request;
@@ -186,6 +198,63 @@ const errorBody = (
 });
 
 /**
+ * Automatically registers a route with the OpenAPI registry.
+ *
+ * This function bridges the gap between Zod validation schemas and OpenAPI documentation.
+ * By calling this inside restApiHandler, we ensure the API docs always stay in sync
+ * with the actual runtime validation — single source of truth.
+ *
+ * Registration only happens at module load time (not per-request),
+ *
+ */
+const registerOpenApiRoute = (options: {
+  body?: ZodType;
+  query?: ZodType;
+  path?: ZodType;
+  response?: ZodType;
+  openapi: OpenApiMeta; // ← openapi 改成 meta 避免冲突
+}): void => {
+  const { openapi } = options;
+
+  const request: RouteConfig['request'] = {
+    ...(options.body && {
+      body: {
+        content: {
+          'application/json': { schema: options.body },
+        },
+      },
+    }),
+    // Conditional Spread
+    // Cast to ZodObject — callers are expected to pass ZodObject for query/path
+    ...(options.query && { query: options.query as ZodObject<ZodRawShape> }),
+    ...(options.path && { params: options.path as ZodObject<ZodRawShape> }),
+  };
+
+  const responses: RouteConfig['responses'] = {
+    200: {
+      description: 'Success',
+      content: {
+        'application/json': {
+          // Set to empty object schema if no response schema provided
+          schema: options.response ?? z.object({}),
+        },
+      },
+    },
+    ...commonErrors,
+  };
+
+  registry.registerPath({
+    method: openapi.method,
+    path: openapi.path,
+    tags: openapi.tags,
+    summary: openapi.summary,
+    description: openapi.description,
+    request,
+    responses,
+  });
+};
+
+/**
  * Middy-enabled handler for API Gateway Proxy Lambda handlers
  */
 export const restApiHandler = <
@@ -198,6 +267,13 @@ export const restApiHandler = <
   query?: Q;
   path?: P;
   response?: R;
+  openapi?: {
+    method: RouteConfig['method'];
+    path: string;
+    summary?: string;
+    tags?: string[];
+    description?: string;
+  };
 }) => {
   const wrapper = middy()
     .use(httpJsonBodyParser())
@@ -213,6 +289,16 @@ export const restApiHandler = <
 
   if (options.response) {
     wrapper.use(zodValidationResponseMiddleware(options.response));
+  }
+
+  if (options.openapi) {
+    registerOpenApiRoute({
+      body: options.body,
+      query: options.query,
+      path: options.path,
+      response: options.response,
+      openapi: options.openapi,
+    });
   }
 
   return {
