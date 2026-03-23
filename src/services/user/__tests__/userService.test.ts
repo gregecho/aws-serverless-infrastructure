@@ -1,4 +1,5 @@
 import { UserRepository } from '@@repositories/user/UserRepository';
+import { UserBody, UserResponse } from '@@schemas/user/userSchema';
 import { faker } from '@faker-js/faker';
 import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createUserService } from '../userService';
@@ -27,7 +28,21 @@ describe('createUser service', () => {
         id: 'mock-id',
         ...user,
       })),
-      get: vi.fn(),
+      getById: vi.fn(),
+      update: function (
+        userId: string,
+        user: Partial<UserBody>,
+      ): Promise<UserResponse> {
+        throw new Error('Function not implemented.');
+      },
+      delete: function (userId: string): Promise<void> {
+        throw new Error('Function not implemented.');
+      },
+      list: function (
+        query?: Record<string, string | undefined>,
+      ): Promise<UserResponse[]> {
+        throw new Error('Function not implemented.');
+      },
     };
 
     const userService = createUserService(mockRepo);
@@ -39,7 +54,7 @@ describe('createUser service', () => {
       email,
     };
 
-    const result = await userService.createUser(user);
+    const result = await userService.create(user);
     expect(mockRepo.save).toHaveBeenCalledTimes(1);
     expect(result.name).toBe(name);
     expect(result.email).toBe(email);

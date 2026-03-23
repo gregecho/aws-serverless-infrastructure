@@ -1,4 +1,4 @@
-# AWS Serverless Modernization POC (TypeScript)
+# AWS Serverless Modernization Infrastructure (TypeScript)
 
 > **A production-ready Serverless architecture utilizing TypeScript, Middy, and DynamoDB, following Onion/Clean Architecture principles.**
 
@@ -6,7 +6,7 @@
 
 ## 📖 Project Overview
 
-This project is a high-quality **Proof of Concept (POC)** built with the **Serverless Framework**. It demonstrates how to build maintainable, scalable, and testable cloud-native applications on AWS.
+This project is a high-quality **Infrastructure** built with the **Serverless Framework**. It demonstrates how to build maintainable, scalable, and testable cloud-native applications on AWS.
 
 Beyond a simple Lambda function, this repository showcases a robust enterprise-grade structure focusing on **separation of concerns**, **runtime validation**, and **automated testing**.
 
@@ -16,6 +16,9 @@ Beyond a simple Lambda function, this repository showcases a robust enterprise-g
 - **Type Safety**: End-to-end TypeScript implementation with **Zod** for runtime schema validation.
 - **Robust Middleware**: Powered by **Middy** for centralized JSON parsing, input validation, and standardized error handling.
 - **Comprehensive Testing**: Full test suite using **Vitest** with local DynamoDB mocking.
+- **Local DynamoDB**: Full offline development support via `serverless-dynamodb`.
+- **Auto CRUD**: Generic `createCrudHandlers` factory for zero-boilerplate CRUD operations.
+- **OpenAPI Integration**: Schema-first API documentation auto-generated from Zod schemas.
 
 ---
 
@@ -25,25 +28,38 @@ The project follows the **Onion/Clean Architecture** pattern to ensure the busin
 
 ### Data Flow
 
-`API Gateway` ➔ `Middy Middleware` ➔ `Lambda Handler` ➔ `Service Layer` ➔ `Repository Layer` ➔ `DynamoDB`
+```
+API Gateway ➔ Middy Middleware ➔ Lambda Handler ➔ Service Layer ➔ Repository Layer ➔ DynamoDB
+```
 
 - **Handler Layer**: Pure entry point. Adapts API Gateway events and manages middleware.
 - **Service Layer**: The "Brain." Contains core business logic and rules.
 - **Repository Layer**: Data access abstraction. Interacts with the DynamoDB client.
 - **Middleware Stack**: Handles cross-cutting concerns (Validation, HTTP Error Formatting).
 
+### Middleware Execution Order
+
+```
+before: httpJsonBodyParser → zodValidation → handler
+after:  zodValidationResponse → responseMiddleware  (reverse registration order)
+error:  errorHandler
+```
+
 ---
 
 ## 🛠️ Tech Stack
 
-| Category       | Technology                           |
-| :------------- | :----------------------------------- |
-| **Language**   | TypeScript                           |
-| **Framework**  | Serverless Framework                 |
-| **Middleware** | Middy (@middy/core)                  |
-| **Validation** | Zod                                  |
-| **Database**   | AWS DynamoDB (@aws-sdk/lib-dynamodb) |
-| **Testing**    | Vitest, Faker.js                     |
+| Category           | Technology                           |
+| :----------------- | :----------------------------------- |
+| **Language**       | TypeScript                           |
+| **Framework**      | Serverless Framework v4              |
+| **Middleware**     | Middy (@middy/core)                  |
+| **Validation**     | Zod                                  |
+| **Database**       | AWS DynamoDB (@aws-sdk/lib-dynamodb) |
+| **Testing**        | Vitest, Faker.js                     |
+| **Local DynamoDB** | serverless-dynamodb                  |
+| **Logging**        | AWS Lambda Powertools Logger         |
+| **Docs**           | Redocly + zod-to-openapi             |
 
 ---
 
@@ -51,104 +67,201 @@ The project follows the **Onion/Clean Architecture** pattern to ensure the busin
 
 ```text
 src/
-├─ clients/      # AWS Client initializations (DynamoDB, etc.)
-├─ docs/     # Lambda entry points (Event parsing & response)
-│ └─ openapi.ts # The central hub that aggregates all routes.
-│ └─ gen-docs.ts # CLI execution script responsible for file I/O.
-│ └─ registry.ts # The global singleton instance of the OpenAPI Registry.
-│ └─ user.docs.ts # API path definitions organized by business modules.
-├─ handlers/     # Lambda entry points (Event parsing & response)
-│ └─ user/
-│ └─ create-user-handler.ts
-├─ services/     # Business logic layer (Framework-agnostic)
-├─ repositories/ # Data access layer (Persistence logic)
-├─ schemas/      # Zod validation schemas
-├─ utils/        # Helpers and custom middleware
-└─ tests/        # Unit & Integration test suites
+├── clients/          # AWS Client initializations (DynamoDB, etc.)
+├── docs/             # OpenAPI documentation
+│   ├── openapi.ts    # Central aggregator for all routes
+│   ├── gen-docs.ts   # CLI script for file generation
+│   ├── registry.ts   # Global OpenAPI registry singleton
+│   └── user.docs.ts  # API path definitions per module
+├── handlers/         # Lambda entry points
+│   └── user/
+│       ├── index.ts              # CRUD handler exports
+│       └── user.serverless.ts    # Serverless function definitions
+├── middleware/       # Middy middleware stack
+│   └── api.ts        # restApiHandler, zodValidation, errorHandler
+├── services/         # Business logic layer (framework-agnostic)
+├── repositories/     # Data access layer (persistence logic)
+├── schemas/          # Zod validation schemas
+├── utils/            # Helpers and error definitions
+└── tests/            # Unit & integration test suites
+
+requests/             # Bruno/REST Client API request collections
+├── user.http
+└── .env.example
 ```
+
+---
 
 ## 🚀 Quick Start
 
 ### 1. Installation
 
 ```bash
-npm install
-# or
-pnpm install
+pnpm db:start        # Start local dynamoDB
+pnpm db:create-tables # Create table in local dynamoDB
 ```
 
 ### 2. Environment Configuration
 
-Create a .env file in the root directory:
-
-```typescript
-USERS_TABLE = your - dynamodb - table;
-AWS_REGION = your - region;
+```bash
+# Copy the template
+cp requests/.env.example .env
 ```
 
-### 3. Local Development & Testing
-
 ```bash
-# Start local simulation
-pnpm serverless offline
-
-# Invoke a function locally
-pnpm serverless invoke local -f create-user --data '{ "body": "{\"name\": \"John\", \"email\": \"john@example.com\"}", "headers": { "Content-Type": "application/json" }, "isBase64Encoded": false }'
-
-
-# Run all tests with coverage
-pnpm run test:coverage
+# .env
+USERS_TABLE=aws-serverless-infrastructure-users-dev
+DYNAMODB_ENDPOINT=http://localhost:8000
+POWERTOOLS_LOG_LEVEL=DEBUG
+POWERTOOLS_DEV=true   # Human-readable logs locally
 ```
 
-### 4. Deployment
+> ⚠️ `.env` is gitignored. Never commit real credentials.
+
+### 3. Local Development
 
 ```bash
-pnpm serverless deploy
+# Start with hot-reload
+pnpm dev
+
+# Start with verbose logging
+pnpm dev --verbose
 ```
 
-### 5. OpenApi
+On startup you should see:
+
+```
+DynamoDB Local Started on port 8000
+serverless-dynamodb: Migration ran for table: aws-serverless-infrastructure-users-dev ✓
+offline: POST http://localhost:3000/dev/users
+offline: GET  http://localhost:3000/dev/users/{id}
+offline: GET  http://localhost:3000/dev/users
+offline: PATCH http://localhost:3000/dev/users/{id}
+offline: DELETE http://localhost:3000/dev/users/{id}
+```
+
+### 4. Local Debugging
+
+**Option A — VS Code JavaScript Debug Terminal (Recommended, zero config)**
+
+```
+1. Open Run and Debug panel (⇧⌘D)
+2. Click "JavaScript Debug Terminal"
+3. Run: pnpm dev
+4. Set breakpoints → send a request → execution pauses automatically
+```
+
+### 5. Verify Local DynamoDB
 
 ```bash
-# Generate Spec to openapi.yaml
+# List tables
+AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local \
+  aws dynamodb list-tables \
+  --endpoint-url http://localhost:8000 \
+  --region us-east-1
+
+# Expected
+# { "TableNames": ["aws-serverless-infrastructure-users-dev"] }
+```
+
+### 6. Deployment
+
+```bash
+# Deploy to dev
+pnpm deploy
+
+# Deploy to production
+pnpm deploy:prod
+```
+
+### 7. OpenAPI Docs
+
+```bash
+# Generate spec → openapi.yaml
 pnpm docs:gen
-# Live Preview: Start a local server in port:4000
+
+# Live preview at http://localhost:4000
 pnpm docs:preview
-# Generates a standalone `index.html` for deployment
+
+# Build standalone index.html
 pnpm docs:build
 ```
 
-### ⚠️ Error Handling
+---
+
+## 🧩 API Endpoints
+
+| Method   | Path          | Description    |
+| :------- | :------------ | :------------- |
+| `POST`   | `/users`      | Create user    |
+| `GET`    | `/users/{id}` | Get user by ID |
+| `GET`    | `/users`      | List users     |
+| `PATCH`  | `/users/{id}` | Update user    |
+| `DELETE` | `/users/{id}` | Delete user    |
+
+---
+
+## ⚠️ Error Handling
 
 All error responses follow a consistent structure:
 
-| Field           | Type      | Description                                            |
-| :-------------- | :-------- | :----------------------------------------------------- |
-| `success`       | `boolean` | Always `false` for error responses.                    |
-| `error.code`    | `string`  | A machine-readable error code (e.g., `INVALID_INPUT`). |
-| `error.message` | `string`  | A human-readable error description.                    |
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [...]
+  }
+}
+```
 
-#### Common HTTP Status Codes
+| Status | Code                 | Description             |
+| :----- | :------------------- | :---------------------- |
+| `400`  | `VALIDATION_ERROR`   | Zod schema violation    |
+| `400`  | `INVALID_JSON`       | Malformed request body  |
+| `404`  | `RESOURCE_NOT_FOUND` | Entity does not exist   |
+| `500`  | `INTERNAL_ERROR`     | Unexpected server error |
 
-- `400`: Validation error or bad request.
-- `401`: Unauthorized / Token missing.
-- `404`: Resource not found.
-- `500`: Internal server error.
+---
 
-### 🧪 Testing Strategy
+## 🧪 Testing Strategy
 
-We employ a dual-layered testing strategy to ensure reliability:
+```bash
+pnpm test             # Watch mode
+pnpm test:run         # CI mode (run once and exit)
+pnpm test:coverage    # With coverage report
+pnpm test:ui          # Visual UI
+```
 
-- Unit Tests: Focus on the Service Layer. Dependencies like DynamoDB are isolated using vi.mock to test business logic in a pure environment.
+We employ a dual-layered testing strategy:
 
-- Integration Tests: Test the Lambda Handler end-to-end, including the behavior of the Middy middleware stack (validation, parsing, and error interception).
+- **Unit Tests**: Focus on the Service Layer. Dependencies like DynamoDB are isolated using `vi.mock`.
+- **Integration Tests**: Test the Lambda Handler end-to-end including Middy middleware behavior (validation, parsing, error interception).
+- **Mocking**: Utilizes Faker.js for realistic data generation and `vi.spyOn` for dependency tracking.
 
-- Mocking: Utilizes Faker.js for realistic data generation and vi.spyOn for dependency tracking.
+---
 
 ## 📁 API Documentation (OpenAPI)
 
 This project implements a **Schema-First (Zod)** development workflow. API definitions, request validations, and documentation are synchronized using [Zod](https://zod.dev/) and [@asteasolutions/zod-to-openapi](https://github.com/asteasolutions/zod-to-openapi).
 
 This ensures **100% consistency** between the TypeScript source code and the generated OpenAPI specification.
+
+---
+
+## 📋 Monitoring & Logs
+
+```bash
+# Tail logs for a specific deployed handler
+pnpm logs user-create --tail
+pnpm logs user-get --tail
+
+# Filter for errors only
+aws logs tail /aws/lambda/aws-serverless-infrastructure-dev-user-create \
+  --follow \
+  --filter-pattern "ERROR"
+```
 
 ---
 
@@ -190,19 +303,18 @@ const UserResponse = BaseUser.extend({
 
 ## 📈 Roadmap & TODOs
 
-- [ ] Observability: Integrate AWS X-Ray for distributed tracing and CloudWatch Metrics.
-
-- [ ] CI/CD: Implementation of GitHub Actions for automated Linting, Testing, and Deployment.
-
-- [x] API Documentation: Automatic Swagger/OpenAPI generation from Zod schemas.
-
-- [ ] Security: Implementation of AWS Secrets Manager for environment variable protection.
-- [ ] AWS X-Ray Integration: Implement distributed tracing to enhance observability and identify bottlenecks within the Serverless environment.
-- [ ] Asynchronous Decoupling: Integrate Amazon SQS into core workflows to decouple services and achieve "load leveling" (shaving peaks and filling valleys) for background tasks.
-- [ ] Local Simulation with LocalStack: Set up LocalStack in a Docker environment to simulate a full suite of AWS services locally, enabling offline development and testing.
-- [ ] Performance Benchmarking: Develop a script to perform Lambda Power Tuning—comparing execution efficiency and cost-effectiveness across different memory configurations (e.g., 128MB vs. 1024MB).
-- [x] Refined Exception Handling: Implement a centralized Lambda Error Handler middleware.
-- [x] Global Exception Definitions: Standardize error schemas across the project to ensure consistent API responses and seamless integration with frontend error boundaries.
-- [ ] Logging
-- [ ] Just
-- [ ] Auto openapi in middleware
+- [x] Onion/Clean Architecture
+- [x] Zod runtime validation (request + response)
+- [x] Centralized error handling middleware
+- [x] Standardized error response schemas
+- [x] Auto CRUD handler factory (`createCrudHandlers`)
+- [x] Local DynamoDB with auto table migration
+- [x] OpenAPI documentation auto-generated from Zod schemas
+- [ ] Logging — Structured logging with AWS Lambda Powertools
+- [ ] Observability — AWS X-Ray distributed tracing
+- [ ] CI/CD — GitHub Actions (lint, test, deploy)
+- [ ] Security — AWS Secrets Manager integration
+- [ ] LocalStack — Full AWS service simulation via Docker
+- [ ] SQS — Async decoupling for background tasks
+- [ ] Lambda Power Tuning — Memory/cost benchmarking
+- [ ] Auto OpenAPI registration in middleware

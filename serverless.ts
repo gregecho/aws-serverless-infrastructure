@@ -3,7 +3,7 @@ import type { AWS } from '@serverless/typescript';
 
 const serverlessConfiguration: AWS = {
   service: 'aws-serverless-infrastructure',
-
+  useDotenv: true,
   frameworkVersion: '4',
 
   provider: {
@@ -13,8 +13,9 @@ const serverlessConfiguration: AWS = {
 
     environment: {
       // DO NOT hardcode any resource
-      //aws-serverless-infrastructure-users-table-dev
-      USERS_TABLE: '${self:service}-users-table-${sls:stage}',
+      //aws-serverless-infrastructure-users-dev
+      USERS_TABLE: '${self:service}-users-${sls:stage}',
+      IS_OFFLINE: 'true',
     },
 
     iam: {
@@ -38,29 +39,13 @@ const serverlessConfiguration: AWS = {
                 ],
               },
             ],
-            Action: [
-              'dynamodb:PutItem',
-              'dynamodb:GetItem',
-              'dynamodb:UpdateItem',
-              'dynamodb:Query',
-            ],
-            Resource: [
-              { 'Fn::GetAtt': ['UsersTable', 'Arn'] },
-              // Permission for index
-              {
-                'Fn::Join': [
-                  '/',
-                  [{ 'Fn::GetAtt': ['UsersTable', 'Arn'] }, 'index/*'],
-                ],
-              },
-            ],
           },
         ],
       },
     },
   },
 
-  plugins: ['serverless-offline', 'serverless-dynamodb'],
+  plugins: ['serverless-offline'],
 
   functions: {
     ...userFunctions,
@@ -73,8 +58,6 @@ const serverlessConfiguration: AWS = {
         Properties: {
           TableName: '${self:provider.environment.USERS_TABLE}',
           BillingMode: 'PAY_PER_REQUEST',
-          TableName: '${self:provider.environment.USERS_TABLE}',
-          BillingMode: 'PAY_PER_REQUEST',
           AttributeDefinitions: [
             {
               AttributeName: 'PK',
@@ -82,34 +65,15 @@ const serverlessConfiguration: AWS = {
             },
             {
               AttributeName: 'SK',
-              AttributeName: 'PK',
               AttributeType: 'S',
             },
-            {
-              AttributeName: 'SK',
-              AttributeType: 'S',
-            },
-            { AttributeName: 'Email', AttributeType: 'S' },
             { AttributeName: 'Email', AttributeType: 'S' },
           ],
           KeySchema: [
             {
               AttributeName: 'PK',
-              AttributeName: 'PK',
               KeyType: 'HASH',
             },
-            {
-              AttributeName: 'SK',
-              KeyType: 'RANGE',
-            },
-          ],
-          GlobalSecondaryIndexes: [
-            {
-              IndexName: 'EmailIndex',
-              KeySchema: [{ AttributeName: 'Email', KeyType: 'HASH' }],
-              Projection: { ProjectionType: 'ALL' },
-            },
-          ],
             {
               AttributeName: 'SK',
               KeyType: 'RANGE',

@@ -1,18 +1,32 @@
-import { UserRepository } from '@@repositories/user/UserRepository';
+import { UserRepository } from '@@repositories/user/userRepository';
 import type { UserBody, UserResponse } from '@@schemas/user/userSchema';
 
 export class UserService {
   constructor(private readonly repository: UserRepository) {}
 
-  async createUser(user: UserBody): Promise<UserResponse> {
-    return this.repository.save(user);
+  async create(body: UserBody): Promise<UserResponse> {
+    return this.repository.save(body);
   }
 
-  async getUser(userId: string): Promise<UserResponse> {
-    return this.repository.get(userId);
+  async getById(id: string): Promise<UserResponse> {
+    return this.repository.getById(id);
+  }
+
+  async list(
+    query?: Record<string, string | undefined>,
+  ): Promise<UserResponse[]> {
+    return this.repository.list(query);
+  }
+
+  async update(id: string, body: Partial<UserBody>): Promise<UserResponse> {
+    return this.repository.update(id, body);
+  }
+
+  async delete(id: string): Promise<void> {
+    return this.repository.delete(id);
   }
 }
 
-export function createUserService(repository: UserRepository) {
+export function createUserService(repository: UserRepository): UserService {
   return new UserService(repository);
 }
