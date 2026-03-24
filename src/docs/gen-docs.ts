@@ -1,6 +1,8 @@
+import { config } from 'dotenv';
 import * as fs from 'node:fs';
 import { stringify } from 'yaml';
 import { getOpenApiDocumentation } from '../docs/openapi';
+config();
 
 function build() {
   try {

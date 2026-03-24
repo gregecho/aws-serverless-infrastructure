@@ -1,0 +1,149 @@
+@awshost = https://82le3v2e59.execute-api.us-east-1.amazonaws.com
+//@awshost = http://localhost:3000
+@stage   = dev
+@base    = {{awshost}}/{{stage}}/users
+@userId  = 1f234ee3-7145-4b43-bcb6-6627c5d3dd87
+
+# ─────────────────────────────────────────────
+# CREATE
+# ─────────────────────────────────────────────
+
+# Create user - valid
+POST {{base}}
+content-type: application/json
+
+{
+    "name": "test user",
+    "email": "test@test.com"
+}
+
+###
+
+# Create user - invalid email
+POST {{base}}
+content-type: application/json
+
+{
+    "name": "test user",
+    "email": "not-an-email"
+}
+
+###
+
+# Create user - missing required fields
+POST {{base}}
+content-type: application/json
+
+{}
+
+###
+
+# Create user - invalid json
+POST {{base}}
+content-type: application/json
+
+{ 123 }
+
+###
+
+# ─────────────────────────────────────────────
+# GET
+# ─────────────────────────────────────────────
+
+# Get user by id - valid
+GET {{base}}/{{userId}}
+content-type: application/json
+
+###
+
+# Get user by id - not found
+GET {{base}}/00000000-0000-0000-0000-000000000000
+content-type: application/json
+
+###
+
+# Get user by id - invalid uuid
+GET {{base}}/not-a-uuid
+content-type: application/json
+
+###
+
+# ─────────────────────────────────────────────
+# LIST
+# ─────────────────────────────────────────────
+
+# List users
+GET {{base}}
+content-type: application/json
+
+###
+
+# List users - with pagination
+GET {{base}}?page=1&limit=10
+content-type: application/json
+
+###
+
+# ─────────────────────────────────────────────
+# UPDATE
+# ─────────────────────────────────────────────
+
+# Update user - valid
+PATCH {{base}}/{{userId}}
+content-type: application/json
+
+{
+    "name": "updated name"
+}
+
+###
+
+# Update user - partial update (email only)
+PATCH {{base}}/{{userId}}
+content-type: application/json
+
+{
+    "email": "updated@test.com"
+}
+
+###
+
+# Update user - invalid email
+PATCH {{base}}/{{userId}}
+content-type: application/json
+
+{
+    "email": "not-an-email"
+}
+
+###
+
+# Update user - not found
+PATCH {{base}}/00000000-0000-0000-0000-000000000000
+content-type: application/json
+
+{
+    "name": "ghost"
+}
+
+###
+
+# ─────────────────────────────────────────────
+# DELETE
+# ─────────────────────────────────────────────
+
+# Delete user - valid
+DELETE {{base}}/{{userId}}
+content-type: application/json
+
+###
+
+# Delete user - not found
+DELETE {{base}}/00000000-0000-0000-0000-000000000000
+content-type: application/json
+
+###
+
+# Delete user - invalid uuid
+DELETE {{base}}/not-a-uuid
+content-type: application/json

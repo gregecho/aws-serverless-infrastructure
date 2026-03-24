@@ -2,8 +2,8 @@ import { userFunctions } from '@@handlers/user/user.serverless';
 import type { AWS } from '@serverless/typescript';
 
 const serverlessConfiguration: AWS = {
-  service: 'aws-serverless-poc',
-
+  service: 'aws-serverless-infrastructure',
+  useDotenv: true,
   frameworkVersion: '4',
 
   provider: {
@@ -12,7 +12,11 @@ const serverlessConfiguration: AWS = {
     region: 'us-east-1',
 
     environment: {
-      USERS_TABLE: 'users-table',
+      // DO NOT hardcode any resource
+      //aws-serverless-infrastructure-users-dev
+      USERS_TABLE: '${self:service}-users-${sls:stage}',
+      IS_OFFLINE: '${env:IS_OFFLINE, "false"}',
+      DYNAMODB_ENDPOINT: '${env:DYNAMODB_ENDPOINT, ""}',
     },
 
     iam: {
@@ -20,15 +24,40 @@ const serverlessConfiguration: AWS = {
         statements: [
           {
             Effect: 'Allow',
-            Action: ['dynamodb:PutItem', 'dynamodb:GetItem'],
-            Resource: ['arn:aws:dynamodb:*:*:table/users-table'],
+            Action: [
+              'dynamodb:PutItem',
+              'dynamodb:GetItem',
+              'dynamodb:UpdateItem',
+              'dynamodb:DeleteItem',
+              'dynamodb:Query',
+              'dynamodb:Scan',
+            ],
+            Resource: [
+              { 'Fn::GetAtt': ['UsersTable', 'Arn'] },
+              // Permission for index
+              {
+                'Fn::Join': [
+                  '/',
+                  [{ 'Fn::GetAtt': ['UsersTable', 'Arn'] }, 'index/*'],
+                ],
+              },
+            ],
           },
         ],
       },
     },
   },
 
-  plugins: ['serverless-offline', 'serverless-dynamodb'],
+  plugins: ['serverless-offline'],
+
+  build: {
+    esbuild: {
+      bundle: true,
+      minify: false,
+      sourcemap: true,
+      exclude: ['@aws-sdk/*'],
+    },
+  },
 
   functions: {
     ...userFunctions,
@@ -38,25 +67,37 @@ const serverlessConfiguration: AWS = {
     Resources: {
       UsersTable: {
         Type: 'AWS::DynamoDB::Table',
-
         Properties: {
-          TableName: 'users-table',
-
+          TableName: '${self:provider.environment.USERS_TABLE}',
+          BillingMode: 'PAY_PER_REQUEST',
           AttributeDefinitions: [
             {
-              AttributeName: 'id',
+              AttributeName: 'PK',
               AttributeType: 'S',
             },
+            {
+              AttributeName: 'SK',
+              AttributeType: 'S',
+            },
+            { AttributeName: 'Email', AttributeType: 'S' },
           ],
-
           KeySchema: [
             {
-              AttributeName: 'id',
+              AttributeName: 'PK',
               KeyType: 'HASH',
             },
+            {
+              AttributeName: 'SK',
+              KeyType: 'RANGE',
+            },
           ],
-
-          BillingMode: 'PAY_PER_REQUEST',
+          GlobalSecondaryIndexes: [
+            {
+              IndexName: 'EmailIndex',
+              KeySchema: [{ AttributeName: 'Email', KeyType: 'HASH' }],
+              Projection: { ProjectionType: 'ALL' },
+            },
+          ],
         },
       },
     },
