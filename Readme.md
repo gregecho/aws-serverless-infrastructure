@@ -10,6 +10,8 @@ This project is a high-quality **Infrastructure** built with the **Serverless Fr
 
 Beyond a simple Lambda function, this repository showcases a robust enterprise-grade structure focusing on **separation of concerns**, **runtime validation**, and **automated testing**.
 
+> AWS fundamental concepts, please refer to [aws-serverless-toturial](./documentation/aws-serverless-toturial.md).
+
 ### Key Features
 
 - **Onion Architecture**: Strict separation between Handlers, Services, and Repositories.
@@ -17,7 +19,6 @@ Beyond a simple Lambda function, this repository showcases a robust enterprise-g
 - **Robust Middleware**: Powered by **Middy** for centralized JSON parsing, input validation, and standardized error handling.
 - **Comprehensive Testing**: Full test suite using **Vitest** with local DynamoDB mocking.
 - **Local DynamoDB**: Full offline development support via `serverless-dynamodb`.
-- **Auto CRUD**: Generic `createCrudHandlers` factory for zero-boilerplate CRUD operations.
 - **OpenAPI Integration**: Schema-first API documentation auto-generated from Zod schemas.
 
 ---
@@ -93,6 +94,7 @@ requests/             # Bruno/REST Client API request collections
 ---
 
 ## 🚀 Quick Start
+
 ### Prerequisites
 
 - Node.js >= 20.x
@@ -155,15 +157,14 @@ AWS_REGION=us-east-1
 
 #### Variable Reference
 
-| Variable            | Local                   | Dev         | Prod        | Description                                     |
-| :------------------ | :---------------------- | :---------- | :---------- | :---------------------------------------------- |
-| `IS_OFFLINE`        | `true`                  | `false`     | `false`     | Enables local DynamoDB mode                     |
-| `DYNAMODB_ENDPOINT` | `http://localhost:8000` | _(empty)_   | _(empty)_   | Local DynamoDB endpoint                         |
-| `AWS_REGION`        | `us-east-1`             | `us-east-1` | `us-east-1` | AWS region                                      |
-|`API_URL_LOCAL`    |`http://localhost:3000/dev`|*(empty)*                                                   |*(empty)*                                                |Local API base URL for OpenAPI docs   |
-|`API_URL_DEV`      |*(empty)*                  |`https://xxxxxx.execute-api.us-east-1.amazonaws.com/dev`|*(empty)*                                                |AWS dev API base URL for OpenAPI docs |
-|`API_URL_PROD`     |*(empty)*                  |*(empty)*                                                   |`https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod`|AWS prod API base URL for OpenAPI docs|                                    |
-
+| Variable            | Local                       | Dev                                                      | Prod                                                      | Description                            |
+| :------------------ | :-------------------------- | :------------------------------------------------------- | :-------------------------------------------------------- | :------------------------------------- | --- |
+| `IS_OFFLINE`        | `true`                      | `false`                                                  | `false`                                                   | Enables local DynamoDB mode            |
+| `DYNAMODB_ENDPOINT` | `http://localhost:8000`     | _(empty)_                                                | _(empty)_                                                 | Local DynamoDB endpoint                |
+| `AWS_REGION`        | `us-east-1`                 | `us-east-1`                                              | `us-east-1`                                               | AWS region                             |
+| `API_URL_LOCAL`     | `http://localhost:3000/dev` | _(empty)_                                                | _(empty)_                                                 | Local API base URL for OpenAPI docs    |
+| `API_URL_DEV`       | _(empty)_                   | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/dev` | _(empty)_                                                 | AWS dev API base URL for OpenAPI docs  |
+| `API_URL_PROD`      | _(empty)_                   | _(empty)_                                                | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod` | AWS prod API base URL for OpenAPI docs |     |
 
 ### 3. Local Development
 
@@ -331,7 +332,7 @@ export const createUserSchema = z
     name: z.string(),
     email: z.string().email(),
   })
-  .openapi('CreateUserRequest');
+  .openapi("CreateUserRequest");
 
 export const userResponseSchema = z
   .object({
@@ -340,7 +341,7 @@ export const userResponseSchema = z
     email: z.string().email(),
     createdAt: z.string(),
   })
-  .openapi('UserResponse');
+  .openapi("UserResponse");
 ```
 
 **2. Register in handler with `openapi` metadata**
@@ -352,10 +353,10 @@ export const create = restApiHandler({
   response: userResponseSchema,
   openapi: {
     // ← add this block
-    method: 'post',
-    path: '/users',
-    summary: 'Create user',
-    tags: ['User'],
+    method: "post",
+    path: "/users",
+    summary: "Create user",
+    tags: ["User"],
   },
 }).handler(async ({ body }) => service.create(body));
 ```
@@ -363,7 +364,7 @@ export const create = restApiHandler({
 **3. Import handler in `src/docs/openapi.ts`**
 
 ```typescript
-import '@@handlers/user/index'; // ← triggers auto-registration
+import "@@handlers/user/index"; // ← triggers auto-registration
 // import '@@handlers/order/index' ← add new resources here
 ```
 
@@ -403,13 +404,13 @@ pnpm docs:preview
 Logging uses [`@aws-lambda-powertools/logger`](https://docs.powertools.aws.dev/lambda/typescript/latest/core/logger/). A `Logger` instance is created per handler with a `serviceName` for correlation.
 
 ```typescript
-import { Logger } from '@aws-lambda-powertools/logger';
+import { Logger } from "@aws-lambda-powertools/logger";
 
-const logger = new Logger({ serviceName: 'myService' });
+const logger = new Logger({ serviceName: "myService" });
 
-logger.info('user created', { userId: result.id });
-logger.warn('something unexpected', { detail });
-logger.error('operation failed', { error });
+logger.info("user created", { userId: result.id });
+logger.warn("something unexpected", { detail });
+logger.error("operation failed", { error });
 ```
 
 Log output is structured JSON, automatically enriched with Lambda context (request ID, cold start, etc.) when running on AWS.
@@ -433,6 +434,7 @@ X-Ray tracing is enabled at both the API Gateway and Lambda levels via `serverle
 The tracer uses [`@aws-lambda-powertools/tracer`](https://docs.powertools.aws.dev/lambda/typescript/latest/core/tracer/).
 
 **What is traced automatically:**
+
 - Every Lambda invocation (segment created by the X-Ray daemon)
 - Each handler execution (subsegment via `tracerMiddleware`)
 - Errors are recorded on the subsegment automatically
@@ -486,12 +488,12 @@ const BaseUser = z
     name: z.string(),
     email: z.string().email(),
   })
-  .openapi('BaseUser');
+  .openapi("BaseUser");
 
 // Response Model (Inherits fields and displays as a reference)
 const UserResponse = BaseUser.extend({
   id: z.string().uuid(),
-}).openapi('UserResponse');
+}).openapi("UserResponse");
 ```
 
 ## 📈 Roadmap & TODOs
