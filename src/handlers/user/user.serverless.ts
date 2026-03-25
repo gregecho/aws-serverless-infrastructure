@@ -25,4 +25,12 @@ export const userFunctions: AWS['functions'] = {
     handler: `${base}.deleteUserHandler`,
     events: [{ http: { path: pathWithId, method: 'DELETE' } }],
   },
+  'user-send-verification': {
+    handler: `${base}.sendVerificationCodeHandler`,
+    events: [{ http: { path: `${pathWithId}/verify/send`, method: 'POST' } }],
+  },
+  'user-verify-code': {
+    handler: `${base}.verifyCodeHandler`,
+    events: [{ http: { path: `${pathWithId}/verify/confirm`, method: 'POST' } }],
+  },
 };

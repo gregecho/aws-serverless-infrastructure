@@ -118,6 +118,38 @@ class UserRepositoryImpl implements UserRepository {
 
     return Items.map((item) => userResponseSchema.parse(item));
   }
+
+  async saveVerificationCode(userId: string, code: string, expiry: number): Promise<void> {
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: PK(userId), SK },
+        UpdateExpression: "SET VerificationCode = :code, VerificationExpiry = :expiry",
+        ExpressionAttributeValues: { ":code": code, ":expiry": expiry },
+        ConditionExpression: "attribute_exists(PK)",
+      }),
+    );
+  }
+
+  async verifyAndMarkVerified(userId: string, code: string): Promise<void> {
+    const { Item } = await dynamo.send(
+      new GetCommand({ TableName: TABLE, Key: { PK: PK(userId), SK } }),
+    );
+
+    if (!Item) throw Errors.NOT_FOUND("user");
+    if (Item.VerificationCode !== code) throw Errors.BAD_REQUEST("Invalid verification code");
+    if (Date.now() > Item.VerificationExpiry) throw Errors.BAD_REQUEST("Verification code expired");
+
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: PK(userId), SK },
+        UpdateExpression:
+          "SET EmailVerified = :verified REMOVE VerificationCode, VerificationExpiry",
+        ExpressionAttributeValues: { ":verified": true },
+      }),
+    );
+  }
 }
 
 export function createUserRepository(): UserRepository {

@@ -143,4 +143,80 @@ describe('UserRepositoryImpl', () => {
     const result = await repo.list();
     expect(result).toEqual([]);
   });
+
+  test('saveVerificationCode should send UpdateCommand with code and expiry', async () => {
+    const repo = createUserRepository();
+    const id = faker.string.uuid();
+    vi.mocked(dynamo.send).mockResolvedValue({} as any);
+
+    await repo.saveVerificationCode(id, '123456', 9999999999);
+
+    const command = vi.mocked(dynamo.send).mock.calls[0][0] as UpdateCommand;
+    expect(command.input.Key).toEqual({ PK: `USER#${id}`, SK: 'PROFILE' });
+    expect(command.input.ExpressionAttributeValues).toMatchObject({
+      ':code': '123456',
+      ':expiry': 9999999999,
+    });
+  });
+
+  test('verifyAndMarkVerified should mark user verified when code matches', async () => {
+    const repo = createUserRepository();
+    const id = faker.string.uuid();
+    const item = {
+      id,
+      name: faker.person.firstName(),
+      email: faker.internet.email(),
+      createdAt: new Date().toISOString(),
+      VerificationCode: '654321',
+      VerificationExpiry: Date.now() + 60_000,
+    };
+
+    vi.mocked(dynamo.send)
+      .mockResolvedValueOnce({ Item: item } as any) // GetCommand
+      .mockResolvedValueOnce({} as any); // UpdateCommand
+
+    await repo.verifyAndMarkVerified(id, '654321');
+
+    expect(vi.mocked(dynamo.send)).toHaveBeenCalledTimes(2);
+    const updateCmd = vi.mocked(dynamo.send).mock.calls[1][0] as UpdateCommand;
+    expect(updateCmd.input.ExpressionAttributeValues).toMatchObject({ ':verified': true });
+  });
+
+  test('verifyAndMarkVerified should throw BAD_REQUEST when code is wrong', async () => {
+    const repo = createUserRepository();
+    const id = faker.string.uuid();
+    const item = {
+      id,
+      name: faker.person.firstName(),
+      email: faker.internet.email(),
+      createdAt: new Date().toISOString(),
+      VerificationCode: '111111',
+      VerificationExpiry: Date.now() + 60_000,
+    };
+
+    vi.mocked(dynamo.send).mockResolvedValueOnce({ Item: item } as any);
+
+    await expect(repo.verifyAndMarkVerified(id, '999999')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  test('verifyAndMarkVerified should throw BAD_REQUEST when code is expired', async () => {
+    const repo = createUserRepository();
+    const id = faker.string.uuid();
+    const item = {
+      id,
+      name: faker.person.firstName(),
+      email: faker.internet.email(),
+      createdAt: new Date().toISOString(),
+      VerificationCode: '123456',
+      VerificationExpiry: Date.now() - 1, // already expired
+    };
+
+    vi.mocked(dynamo.send).mockResolvedValueOnce({ Item: item } as any);
+
+    await expect(repo.verifyAndMarkVerified(id, '123456')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
 });

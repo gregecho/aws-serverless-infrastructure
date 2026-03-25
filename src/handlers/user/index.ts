@@ -4,14 +4,17 @@ import {
   createUserRequestSchema,
   listUsersQuerySchema,
   listUsersResponseSchema,
+  sendVerificationCodeRequestSchema,
   updateUserRequestSchema,
   userIdPathSchema,
   userResponseSchema,
+  verificationResponseSchema,
+  verifyCodeRequestSchema,
 } from '@@schemas/user/userSchema';
 import { createUserService } from '@@services/user/userService';
 import { Logger } from '@aws-lambda-powertools/logger';
 
-const logger = new Logger({ serviceName: 'createUser' });
+const logger = new Logger({ serviceName: 'userHandlers' });
 const userService = createUserService(createUserRepository());
 
 export const createUserHandler = restApiHandler({
@@ -33,9 +36,9 @@ export const getUserByIdHandler = restApiHandler({
   path: userIdPathSchema,
   response: userResponseSchema,
   openapi: {
-    method: 'post',
-    path: '/users',
-    summary: 'Create user',
+    method: 'get',
+    path: '/users/{id}',
+    summary: 'Get user by id',
     tags: ['User'],
   },
 }).handler(async ({ path }) => {
@@ -87,4 +90,36 @@ export const deleteUserHandler = restApiHandler({
   await userService.delete(path.id);
   logger.info('user deleted', { userId: path.id });
   return { success: true };
+});
+
+export const sendVerificationCodeHandler = restApiHandler({
+  body: sendVerificationCodeRequestSchema,
+  path: userIdPathSchema,
+  response: verificationResponseSchema,
+  openapi: {
+    method: 'post',
+    path: '/users/{id}/verify/send',
+    summary: 'Send email verification code',
+    tags: ['User'],
+  },
+}).handler(async ({ body, path }) => {
+  await userService.sendVerificationCode(path.id, body.email);
+  logger.info('verification code sent', { userId: path.id });
+  return { message: 'Verification code sent' };
+});
+
+export const verifyCodeHandler = restApiHandler({
+  body: verifyCodeRequestSchema,
+  path: userIdPathSchema,
+  response: verificationResponseSchema,
+  openapi: {
+    method: 'post',
+    path: '/users/{id}/verify/confirm',
+    summary: 'Verify email code',
+    tags: ['User'],
+  },
+}).handler(async ({ body, path }) => {
+  await userService.verifyCode(path.id, body.code);
+  logger.info('user email verified', { userId: path.id });
+  return { message: 'Email verified' };
 });

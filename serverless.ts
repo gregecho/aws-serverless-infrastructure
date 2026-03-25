@@ -22,6 +22,8 @@ const serverlessConfiguration: AWS = {
       USERS_TABLE: "${self:service}-users-${sls:stage}",
       IS_OFFLINE: '${env:IS_OFFLINE, "false"}',
       DYNAMODB_ENDPOINT: '${env:DYNAMODB_ENDPOINT, ""}',
+      PORTRAITS_BUCKET: "${self:service}-portraits-${sls:stage}",
+      VERIFICATION_TOPIC_ARN: { Ref: "VerificationTopic" },
     },
 
     iam: {
@@ -52,6 +54,25 @@ const serverlessConfiguration: AWS = {
                 ],
               },
             ],
+          },
+          {
+            Effect: "Allow",
+            Action: ["s3:PutObject"],
+            Resource: {
+              "Fn::Join": [
+                "",
+                [
+                  "arn:aws:s3:::",
+                  "${self:service}-portraits-${sls:stage}",
+                  "/*",
+                ],
+              ],
+            },
+          },
+          {
+            Effect: "Allow",
+            Action: ["sns:Publish"],
+            Resource: { Ref: "VerificationTopic" },
           },
         ],
       },
@@ -144,6 +165,18 @@ const serverlessConfiguration: AWS = {
               },
             ],
           },
+        },
+      },
+      PortraitsBucket: {
+        Type: "AWS::S3::Bucket",
+        Properties: {
+          BucketName: "${self:service}-portraits-${sls:stage}",
+        },
+      },
+      VerificationTopic: {
+        Type: "AWS::SNS::Topic",
+        Properties: {
+          TopicName: "${self:service}-verification-${sls:stage}",
         },
       },
     },

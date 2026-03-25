@@ -6,4 +6,6 @@ export interface UserRepository {
   update(userId: string, user: Partial<UserBody>): Promise<UserResponse>;
   delete(userId: string): Promise<void>;
   list(query?: Record<string, string | undefined>): Promise<UserResponse[]>;
+  saveVerificationCode(userId: string, code: string, expiry: number): Promise<void>;
+  verifyAndMarkVerified(userId: string, code: string): Promise<void>;
 }

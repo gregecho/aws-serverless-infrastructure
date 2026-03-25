@@ -158,22 +158,19 @@ AWS_REGION=us-east-1
 #### Variable Reference
 
 | Variable            | Local                       | Dev                                                      | Prod                                                      | Description                            |
-| :------------------ | :-------------------------- | :------------------------------------------------------- | :-------------------------------------------------------- | :------------------------------------- | --- |
+| :------------------ | :-------------------------- | :------------------------------------------------------- | :-------------------------------------------------------- | :------------------------------------- |
 | `IS_OFFLINE`        | `true`                      | `false`                                                  | `false`                                                   | Enables local DynamoDB mode            |
 | `DYNAMODB_ENDPOINT` | `http://localhost:8000`     | _(empty)_                                                | _(empty)_                                                 | Local DynamoDB endpoint                |
 | `AWS_REGION`        | `us-east-1`                 | `us-east-1`                                              | `us-east-1`                                               | AWS region                             |
 | `API_URL_LOCAL`     | `http://localhost:3000/dev` | _(empty)_                                                | _(empty)_                                                 | Local API base URL for OpenAPI docs    |
 | `API_URL_DEV`       | _(empty)_                   | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/dev` | _(empty)_                                                 | AWS dev API base URL for OpenAPI docs  |
-| `API_URL_PROD`      | _(empty)_                   | _(empty)_                                                | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod` | AWS prod API base URL for OpenAPI docs |     |
+| `API_URL_PROD`      | _(empty)_                   | _(empty)_                                                | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod` | AWS prod API base URL for OpenAPI docs |
 
 ### 3. Local Development
 
 ```bash
-# Start with hot-reload
+# Start locally
 pnpm dev
-
-# Start with verbose logging
-pnpm dev --verbose
 ```
 
 On startup you should see:
@@ -247,13 +244,59 @@ The `docs:deploy:dev` command builds the docs and uploads `index.html` to the `a
 
 ## 🧩 API Endpoints
 
-| Method   | Path          | Description    |
-| :------- | :------------ | :------------- |
-| `POST`   | `/users`      | Create user    |
-| `GET`    | `/users/{id}` | Get user by ID |
-| `GET`    | `/users`      | List users     |
-| `PATCH`  | `/users/{id}` | Update user    |
-| `DELETE` | `/users/{id}` | Delete user    |
+| Method   | Path                         | Description                                      |
+| :------- | :--------------------------- | :----------------------------------------------- |
+| `POST`   | `/users`                     | Create user — response includes presigned S3 URL |
+| `GET`    | `/users/{id}`                | Get user by ID                                   |
+| `GET`    | `/users`                     | List users                                       |
+| `PATCH`  | `/users/{id}`                | Update user                                      |
+| `DELETE` | `/users/{id}`                | Delete user                                      |
+| `POST`   | `/users/{id}/verify/send`    | Send email verification code via SNS             |
+| `POST`   | `/users/{id}/verify/confirm` | Confirm verification code                        |
+
+### Portrait Upload
+
+When a user is created (`POST /users`), the response includes two extra fields:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "name": "...",
+    "email": "...",
+    "createdAt": "...",
+    "portraitUploadUrl": "https://s3.amazonaws.com/...",
+    "portraitKey": "portraits/{id}.jpg"
+  }
+}
+```
+
+Use `portraitUploadUrl` to upload the portrait directly from the client with a `PUT` request (expires in 5 minutes):
+
+```bash
+curl -X PUT "<portraitUploadUrl>" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @portrait.jpg
+```
+
+### Email Verification
+
+**1. Send code** — `POST /users/{id}/verify/send`
+
+```json
+{ "email": "user@example.com" }
+```
+
+Publishes a 6-digit code to the SNS `VerificationTopic`. Subscribe an email address to the topic in the AWS console after deploying.
+
+**2. Confirm code** — `POST /users/{id}/verify/confirm`
+
+```json
+{ "code": "123456" }
+```
+
+Validates the code (10-minute expiry) and marks the user as `EmailVerified = true` in DynamoDB.
 
 ---
 
@@ -509,6 +552,8 @@ const UserResponse = BaseUser.extend({
 - [x] OpenAPI deploy to S3 static html
 - [x] Logging — Structured logging with AWS Lambda Powertools
 - [x] Observability — AWS X-Ray distributed tracing
+- [x] Portrait upload — Presigned S3 URL returned on user creation
+- [x] Email verification — SNS-based 6-digit code flow
 - [ ] Security — AWS Secrets Manager integration
 - [ ] SQS — Async decoupling for background tasks
 - [ ] Lambda Power Tuning — Memory/cost benchmarking
