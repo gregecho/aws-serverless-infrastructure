@@ -60,6 +60,8 @@ export const userResponseSchema = baseUserSchema
       .optional()
       .describe("Presigned S3 URL to upload portrait"),
     portraitKey: z.string().optional().describe("S3 key for the portrait"),
+    bio: z.string().optional().describe("AI-generated bio"),
+    tags: z.array(z.string()).optional().describe("AI-generated profile tags"),
   })
   .openapi("UserResponse");
 
@@ -80,6 +82,7 @@ export const verificationResponseSchema = z
 export type UserResponse = z.infer<typeof userResponseSchema>;
 export type UserRequest = z.infer<typeof createUserRequestSchema>;
 export type UserBody = z.infer<typeof baseUserSchema>;
+export type UserUpdateFields = Partial<UserBody & { bio: string; tags: string[]; portraitKey: string }>;
 
 export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
 export type SendVerificationCodeRequest = z.infer<

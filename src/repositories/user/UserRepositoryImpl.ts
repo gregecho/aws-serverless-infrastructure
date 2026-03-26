@@ -1,7 +1,8 @@
-import { dynamo } from "@@clients/dynamoClient";
+import { dynamo } from "@@clients/aws.client";
 import {
   UserBody,
   UserResponse,
+  UserUpdateFields,
   userResponseSchema,
 } from "@@schemas/user/userSchema";
 import { Errors } from "@@utils/errors";
@@ -58,7 +59,7 @@ class UserRepositoryImpl implements UserRepository {
     return userResponseSchema.parse(item);
   }
 
-  async update(userId: string, user: Partial<UserBody>): Promise<UserResponse> {
+  async update(userId: string, user: UserUpdateFields): Promise<UserResponse> {
     // Build UpdateExpression dynamically from partial fields
     const entries = Object.entries(user);
     if (entries.length === 0) {

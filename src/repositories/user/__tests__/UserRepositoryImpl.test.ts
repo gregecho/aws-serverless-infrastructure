@@ -1,11 +1,11 @@
-import { dynamo } from '@@clients/dynamoClient';
+import { dynamo } from '@@clients/aws.client';
 import { DeleteCommand, GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createUserRepository } from '../UserRepositoryImpl';
 
 // mock dynamo client
-vi.mock('@@clients/dynamoClient', () => ({
+vi.mock('@@clients/aws.client', () => ({
   dynamo: {
     send: vi.fn(),
   },

@@ -74,6 +74,11 @@ const serverlessConfiguration: AWS = {
             Action: ["sns:Publish"],
             Resource: { Ref: "VerificationTopic" },
           },
+          {
+            Effect: "Allow",
+            Action: ["bedrock:InvokeModel"],
+            Resource: "arn:aws:bedrock:${self:provider.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+          },
         ],
       },
     },

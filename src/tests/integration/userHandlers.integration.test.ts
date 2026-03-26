@@ -5,13 +5,16 @@ import {
   listUsersHandler,
   updateUserHandler,
 } from "@@handlers/user";
-import { UserService } from "@@services/user/userService";
+import { UserServiceImpl } from "@@services/user/userServiceImpl";
 import { Errors } from "@@utils/errors";
 import { faker } from "@faker-js/faker";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-vi.mock("@@clients/dynamoClient", () => ({
+vi.mock("@@clients/aws.client", () => ({
   dynamo: { send: vi.fn().mockResolvedValue({}) },
+  s3Client: {},
+  sns: { send: vi.fn().mockResolvedValue({}) },
+  bedrock: {},
 }));
 
 beforeEach(() => {
@@ -29,7 +32,7 @@ describe("User API (integration)", () => {
   describe("createUser API (integration)", () => {
     const mockCreate = vi.fn();
     beforeEach(() => {
-      vi.spyOn(UserService.prototype, "create").mockImplementation(mockCreate);
+      vi.spyOn(UserServiceImpl.prototype, "create").mockImplementation(mockCreate);
     });
 
     test("should return 200 when request is valid", async () => {
@@ -106,7 +109,7 @@ describe("User API (integration)", () => {
   describe("getUserById API (integration)", () => {
     const mockGetById = vi.fn();
     beforeEach(() => {
-      vi.spyOn(UserService.prototype, "getById").mockImplementation(
+      vi.spyOn(UserServiceImpl.prototype, "getById").mockImplementation(
         mockGetById,
       );
     });
@@ -165,7 +168,7 @@ describe("User API (integration)", () => {
   describe("listUsers API (integration)", () => {
     const mockList = vi.fn();
     beforeEach(() => {
-      vi.spyOn(UserService.prototype, "list").mockImplementation(mockList);
+      vi.spyOn(UserServiceImpl.prototype, "list").mockImplementation(mockList);
     });
 
     test("should return 200 with list of users", async () => {
@@ -222,7 +225,7 @@ describe("User API (integration)", () => {
   describe("updateUser API (integration)", () => {
     const mockUpdate = vi.fn();
     beforeEach(() => {
-      vi.spyOn(UserService.prototype, "update").mockImplementation(mockUpdate);
+      vi.spyOn(UserServiceImpl.prototype, "update").mockImplementation(mockUpdate);
     });
 
     test("should return 200 with updated user", async () => {
@@ -279,7 +282,7 @@ describe("User API (integration)", () => {
   describe("deleteUser API (integration)", () => {
     const mockDelete = vi.fn();
     beforeEach(() => {
-      vi.spyOn(UserService.prototype, "delete").mockImplementation(mockDelete);
+      vi.spyOn(UserServiceImpl.prototype, "delete").mockImplementation(mockDelete);
     });
 
     test("should return 200 when user deleted", async () => {

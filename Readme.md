@@ -57,6 +57,7 @@ error:  errorHandler
 | **Middleware**     | Middy (@middy/core)                  |
 | **Validation**     | Zod                                  |
 | **Database**       | AWS DynamoDB (@aws-sdk/lib-dynamodb) |
+| **AI Enrichment**  | AWS Bedrock (Claude 3 Haiku)         |
 | **Testing**        | Vitest, Faker.js                     |
 | **Local DynamoDB** | serverless-dynamodb                  |
 | **Logging**        | AWS Lambda Powertools Logger         |
@@ -69,7 +70,8 @@ error:  errorHandler
 
 ```text
 src/
-├── clients/          # AWS Client initializations (DynamoDB, etc.)
+├── clients/
+│   └── aws.client.ts         # All AWS clients: DynamoDB, S3, SNS, Bedrock
 ├── docs/             # OpenAPI documentation
 │   ├── openapi.ts    # Central aggregator for all routes
 │   ├── gen-docs.ts   # CLI script for file generation
@@ -81,6 +83,12 @@ src/
 ├── middleware/       # Middy middleware stack
 │   └── api.ts        # restApiHandler, zodValidation, errorHandler
 ├── services/         # Business logic layer (framework-agnostic)
+│   ├── ai/
+│   │   ├── BedrockService.ts     # Interface
+│   │   └── BedrockServiceImpl.ts # AWS Bedrock implementation
+│   └── user/
+│       ├── userService.ts        # Interface
+│       └── userServiceImpl.ts    # Implementation
 ├── repositories/     # Data access layer (persistence logic)
 ├── schemas/          # Zod validation schemas
 ├── utils/            # Helpers and error definitions
@@ -244,41 +252,60 @@ The `docs:deploy:dev` command builds the docs and uploads `index.html` to the `a
 
 ## 🧩 API Endpoints
 
-| Method   | Path                         | Description                                      |
-| :------- | :--------------------------- | :----------------------------------------------- |
-| `POST`   | `/users`                     | Create user — response includes presigned S3 URL |
-| `GET`    | `/users/{id}`                | Get user by ID                                   |
-| `GET`    | `/users`                     | List users                                       |
-| `PATCH`  | `/users/{id}`                | Update user                                      |
-| `DELETE` | `/users/{id}`                | Delete user                                      |
-| `POST`   | `/users/{id}/verify/send`    | Send email verification code via SNS             |
-| `POST`   | `/users/{id}/verify/confirm` | Confirm verification code                        |
+| Method   | Path                              | Description                                      |
+| :------- | :-------------------------------- | :----------------------------------------------- |
+| `POST`   | `/users`                          | Create user — AI-enriched bio/tags via Bedrock   |
+| `GET`    | `/users/{id}`                     | Get user by ID                                   |
+| `GET`    | `/users`                          | List users                                       |
+| `PATCH`  | `/users/{id}`                     | Update user                                      |
+| `DELETE` | `/users/{id}`                     | Delete user                                      |
+| `GET`    | `/users/{id}/portrait/upload-url` | Get presigned S3 URL to upload portrait          |
+| `POST`   | `/users/{id}/verify/send`         | Send email verification code via SNS             |
+| `POST`   | `/users/{id}/verify/confirm`      | Confirm verification code                        |
 
 ### Portrait Upload
 
-When a user is created (`POST /users`), the response includes two extra fields:
+**1. Get presigned URL** — `GET /users/{id}/portrait/upload-url`
+
+```json
+{
+  "success": true,
+  "data": {
+    "uploadUrl": "https://s3.amazonaws.com/...",
+    "portraitKey": "portraits/{id}.jpg"
+  }
+}
+```
+
+**2. Upload directly from client** (expires in 5 minutes):
+
+```bash
+curl -X PUT "<uploadUrl>" \
+  -H "Content-Type: image/jpeg" \
+  --data-binary @portrait.jpg
+```
+
+**3. Save the key** — `PATCH /users/{id}` with `{ "portraitKey": "portraits/{id}.jpg" }`
+
+### AI Profile Enrichment
+
+When a user is created (`POST /users`), Bedrock (Claude 3 Haiku) automatically generates a `bio` and `tags` based on the user's name and email domain:
 
 ```json
 {
   "success": true,
   "data": {
     "id": "...",
-    "name": "...",
-    "email": "...",
+    "name": "Jane Smith",
+    "email": "jane@acme.com",
     "createdAt": "...",
-    "portraitUploadUrl": "https://s3.amazonaws.com/...",
-    "portraitKey": "portraits/{id}.jpg"
+    "bio": "A professional at acme.com with expertise in their field.",
+    "tags": ["acme", "professional", "tech"]
   }
 }
 ```
 
-Use `portraitUploadUrl` to upload the portrait directly from the client with a `PUT` request (expires in 5 minutes):
-
-```bash
-curl -X PUT "<portraitUploadUrl>" \
-  -H "Content-Type: image/jpeg" \
-  --data-binary @portrait.jpg
-```
+If Bedrock is unavailable, the user is still created — enrichment failure is non-blocking.
 
 ### Email Verification
 
@@ -552,8 +579,9 @@ const UserResponse = BaseUser.extend({
 - [x] OpenAPI deploy to S3 static html
 - [x] Logging — Structured logging with AWS Lambda Powertools
 - [x] Observability — AWS X-Ray distributed tracing
-- [x] Portrait upload — Presigned S3 URL returned on user creation
+- [x] Portrait upload — Dedicated presigned URL endpoint (`GET /users/{id}/portrait/upload-url`)
 - [x] Email verification — SNS-based 6-digit code flow
+- [x] AI enrichment — Bedrock (Claude 3 Haiku) generates bio/tags on user creation
 - [ ] Security — AWS Secrets Manager integration
 - [ ] SQS — Async decoupling for background tasks
 - [ ] Lambda Power Tuning — Memory/cost benchmarking

@@ -33,4 +33,8 @@ export const userFunctions: AWS['functions'] = {
     handler: `${base}.verifyCodeHandler`,
     events: [{ http: { path: `${pathWithId}/verify/confirm`, method: 'POST' } }],
   },
+  'user-portrait-upload-url': {
+    handler: `${base}.getPortraitUploadUrlHandler`,
+    events: [{ http: { path: `${pathWithId}/portrait/upload-url`, method: 'GET' } }],
+  },
 };
