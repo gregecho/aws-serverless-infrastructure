@@ -156,23 +156,23 @@ cp ./src/requests/.env.example .env
 ```bash
 # .env — Local development
 IS_OFFLINE=true
-DYNAMODB_ENDPOINT=http://localhost:8000
+# DYNAMODB_ENDPOINT=http://localhost:8000 # Deprecated
 AWS_REGION=us-east-1
 ```
 
-> ⚠️ `DYNAMODB_ENDPOINT` must be set for local DynamoDB (Docker).  
-> In AWS deployments, leave it empty — Lambda uses IAM Role credentials automatically.
+> ~~⚠️ `DYNAMODB_ENDPOINT` must be set for local DynamoDB (Docker).~~
+> ~~In AWS deployments, leave it empty — Lambda uses IAM Role credentials automatically.~~
 
 #### Variable Reference
 
-| Variable            | Local                       | Dev                                                      | Prod                                                      | Description                            |
-| :------------------ | :-------------------------- | :------------------------------------------------------- | :-------------------------------------------------------- | :------------------------------------- |
-| `IS_OFFLINE`        | `true`                      | `false`                                                  | `false`                                                   | Enables local DynamoDB mode            |
-| `DYNAMODB_ENDPOINT` | `http://localhost:8000`     | _(empty)_                                                | _(empty)_                                                 | Local DynamoDB endpoint                |
-| `AWS_REGION`        | `us-east-1`                 | `us-east-1`                                              | `us-east-1`                                               | AWS region                             |
-| `API_URL_LOCAL`     | `http://localhost:3000/dev` | _(empty)_                                                | _(empty)_                                                 | Local API base URL for OpenAPI docs    |
-| `API_URL_DEV`       | _(empty)_                   | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/dev` | _(empty)_                                                 | AWS dev API base URL for OpenAPI docs  |
-| `API_URL_PROD`      | _(empty)_                   | _(empty)_                                                | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod` | AWS prod API base URL for OpenAPI docs |
+| Variable                | Local                       | Dev                                                      | Prod                                                      | Description                            |
+| :---------------------- | :-------------------------- | :------------------------------------------------------- | :-------------------------------------------------------- | :------------------------------------- |
+| `IS_OFFLINE`            | `true`                      | `false`                                                  | `false`                                                   | Enables local DynamoDB mode            |
+| ~~`DYNAMODB_ENDPOINT`~~ | ~~`http://localhost:8000`~~ | _(empty)_                                                | _(empty)_                                                 | Local DynamoDB endpoint                |
+| `AWS_REGION`            | `us-east-1`                 | `us-east-1`                                              | `us-east-1`                                               | AWS region                             |
+| `API_URL_LOCAL`         | `http://localhost:3000/dev` | _(empty)_                                                | _(empty)_                                                 | Local API base URL for OpenAPI docs    |
+| `API_URL_DEV`           | _(empty)_                   | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/dev` | _(empty)_                                                 | AWS dev API base URL for OpenAPI docs  |
+| `API_URL_PROD`          | _(empty)_                   | _(empty)_                                                | `https://xxxxxx.execute-api.us-east-1.amazonaws.com/prod` | AWS prod API base URL for OpenAPI docs |
 
 ### 3. Local Development
 
@@ -204,7 +204,9 @@ offline: DELETE http://localhost:3000/dev/users/{id}
 4. Set breakpoints → send a request → execution pauses automatically
 ```
 
-### 5. Verify Local DynamoDB
+### 5. ~~Verify Local DynamoDB~~ -- Deprecated
+
+In order to reduce the complexity, we should use the real AWS DynamoDB(dev) for local. Also, the developing requests to AWS DynamoDB are much cheapier than expected.
 
 ```bash
 # List tables
@@ -252,16 +254,16 @@ The `docs:deploy:dev` command builds the docs and uploads `index.html` to the `a
 
 ## 🧩 API Endpoints
 
-| Method   | Path                              | Description                                      |
-| :------- | :-------------------------------- | :----------------------------------------------- |
-| `POST`   | `/users`                          | Create user — AI-enriched bio/tags via Bedrock   |
-| `GET`    | `/users/{id}`                     | Get user by ID                                   |
-| `GET`    | `/users`                          | List users                                       |
-| `PATCH`  | `/users/{id}`                     | Update user                                      |
-| `DELETE` | `/users/{id}`                     | Delete user                                      |
-| `GET`    | `/users/{id}/portrait/upload-url` | Get presigned S3 URL to upload portrait          |
-| `POST`   | `/users/{id}/verify/send`         | Send email verification code via SNS             |
-| `POST`   | `/users/{id}/verify/confirm`      | Confirm verification code                        |
+| Method   | Path                              | Description                                    |
+| :------- | :-------------------------------- | :--------------------------------------------- |
+| `POST`   | `/users`                          | Create user — AI-enriched bio/tags via Bedrock |
+| `GET`    | `/users/{id}`                     | Get user by ID                                 |
+| `GET`    | `/users`                          | List users                                     |
+| `PATCH`  | `/users/{id}`                     | Update user                                    |
+| `DELETE` | `/users/{id}`                     | Delete user                                    |
+| `GET`    | `/users/{id}/portrait/upload-url` | Get presigned S3 URL to upload portrait        |
+| `POST`   | `/users/{id}/verify/send`         | Send email verification code via SNS           |
+| `POST`   | `/users/{id}/verify/confirm`      | Confirm verification code                      |
 
 ### Portrait Upload
 
