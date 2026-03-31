@@ -63,6 +63,7 @@ error:  errorHandler
 | **Logging**        | AWS Lambda Powertools Logger         |
 | **Tracing**        | AWS X-Ray + Lambda Powertools Tracer |
 | **Docs**           | Redocly + zod-to-openapi             |
+| **Event Streaming** | AWS Kinesis Data Streams (@aws-sdk/client-kinesis) |
 
 ---
 
@@ -77,9 +78,12 @@ src/
 │   ├── gen-docs.ts   # CLI script for file generation
 │   ├── registry.ts   # Global OpenAPI registry singleton
 ├── handlers/         # Lambda entry points
-│   └── user/
-│       ├── index.ts              # CRUD handler exports
-│       └── user.serverless.ts    # Serverless function definitions
+│   ├── user/
+│   │   ├── index.ts              # CRUD handler exports
+│   │   └── user.serverless.ts    # Serverless function definitions
+│   └── kinesis/
+│       ├── index.ts              # Producer + consumer handler exports
+│       └── kinesis.serverless.ts # Serverless function definitions
 ├── middleware/       # Middy middleware stack
 │   └── api.ts        # restApiHandler, zodValidation, errorHandler
 ├── services/         # Business logic layer (framework-agnostic)
@@ -264,6 +268,7 @@ The `docs:deploy:dev` command builds the docs and uploads `index.html` to the `a
 | `GET`    | `/users/{id}/portrait/upload-url` | Get presigned S3 URL to upload portrait        |
 | `POST`   | `/users/{id}/verify/send`         | Send email verification code via SNS           |
 | `POST`   | `/users/{id}/verify/confirm`      | Confirm verification code                      |
+| `POST`   | `/kinesis/publish`                | Fetch weather from Open-Meteo and publish to Kinesis stream |
 
 ### Portrait Upload
 
@@ -568,6 +573,47 @@ const UserResponse = BaseUser.extend({
 }).openapi("UserResponse");
 ```
 
+## 📡 Event Streaming (Kinesis)
+
+AWS Kinesis Data Streams is a real-time event streaming service — conceptually similar to Apache Kafka (publish/subscribe model):
+
+| Concept | Kafka | Kinesis |
+| :--- | :--- | :--- |
+| Stream | Topic | Stream |
+| Partition | Partition | Shard |
+| Producer | Producer | `PutRecord` / `PutRecords` |
+| Consumer | Consumer Group | Lambda trigger / `GetRecords` |
+| Message | Record | Record (base64-encoded data blob) |
+
+### How it works in this project
+
+```
+POST /kinesis/publish
+  → fetch weather JSON from Open-Meteo API
+  → PutRecord → WeatherStream (1 shard)
+  → Kinesis triggers weatherConsumerHandler (Lambda)
+  → consumer decodes base64 payload and logs it
+```
+
+The producer uses `@aws-sdk/client-kinesis` (`PutRecordCommand`).
+The consumer is a Lambda with a `stream` event trigger — AWS polls the shard on your behalf (no SDK calls needed in the consumer).
+
+### Verify end-to-end (requires AWS deploy)
+
+```bash
+# 1. Invoke producer
+curl -X POST https://<api-id>.execute-api.<region>.amazonaws.com/dev/kinesis/publish
+# Expected: {"success":true,"data":{"published":true}}
+
+# 2. Tail consumer logs
+serverless logs --function kinesis-consumer --tail --stage dev
+# Expected: structured log with "weather record received" + Open-Meteo payload
+```
+
+> Note: Kinesis stream triggers are not emulated by `serverless-offline`. Full flow requires a real AWS deploy.
+
+---
+
 ## 📈 Roadmap & TODOs
 
 - [x] Onion/Clean Architecture
@@ -584,6 +630,7 @@ const UserResponse = BaseUser.extend({
 - [x] Portrait upload — Dedicated presigned URL endpoint (`GET /users/{id}/portrait/upload-url`)
 - [x] Email verification — SNS-based 6-digit code flow
 - [x] AI enrichment — Bedrock (Claude 3 Haiku) generates bio/tags on user creation
+- [x] Kinesis event streaming — publish/subscribe demo (Open-Meteo weather data → Kinesis stream → Lambda consumer)
 - [ ] Security — Hander the authorization header
 - [ ] Third/Internal service intercation via Axios
 - [ ] SQS — Async decoupling for background tasks

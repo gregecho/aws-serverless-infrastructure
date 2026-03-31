@@ -1,3 +1,4 @@
+import { kinesisFunctions } from "@@handlers/kinesis/kinesis.serverless";
 import { userFunctions } from "@@handlers/user/user.serverless";
 import type { AWS } from "@serverless/typescript";
 
@@ -24,6 +25,7 @@ const serverlessConfiguration: AWS = {
       DYNAMODB_ENDPOINT: '${env:DYNAMODB_ENDPOINT, ""}',
       PORTRAITS_BUCKET: "${self:service}-portraits-${sls:stage}",
       VERIFICATION_TOPIC_ARN: { Ref: "VerificationTopic" },
+      WEATHER_STREAM_NAME: { Ref: "WeatherStream" },
     },
 
     iam: {
@@ -77,7 +79,19 @@ const serverlessConfiguration: AWS = {
           {
             Effect: "Allow",
             Action: ["bedrock:InvokeModel"],
-            Resource: "arn:aws:bedrock:${self:provider.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+            Resource:
+              "arn:aws:bedrock:${self:provider.region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0",
+          },
+          {
+            Effect: "Allow",
+            Action: [
+              "kinesis:PutRecord",
+              "kinesis:GetRecords",
+              "kinesis:GetShardIterator",
+              "kinesis:DescribeStream",
+              "kinesis:ListShards",
+            ],
+            Resource: { "Fn::GetAtt": ["WeatherStream", "Arn"] },
           },
         ],
       },
@@ -97,6 +111,7 @@ const serverlessConfiguration: AWS = {
 
   functions: {
     ...userFunctions,
+    ...kinesisFunctions,
   },
 
   resources: {
@@ -182,6 +197,13 @@ const serverlessConfiguration: AWS = {
         Type: "AWS::SNS::Topic",
         Properties: {
           TopicName: "${self:service}-verification-${sls:stage}",
+        },
+      },
+      WeatherStream: {
+        Type: "AWS::Kinesis::Stream",
+        Properties: {
+          Name: "${self:service}-weather-${sls:stage}",
+          ShardCount: 1,
         },
       },
     },
